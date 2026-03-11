@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Customer Churn Prediction Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #F0F4F8; color: #1A1A1A; }
+
+  .header {
+    background: linear-gradient(135deg, #1F4E79 0%, #2E75B6 100%);
+    color: white; padding: 28px 40px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p  { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+  .badge { background: #F4A21E; color: white; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; padding: 24px 40px 8px; }
+  .kpi { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); text-align: center; border-top: 4px solid #2E75B6; }
+  .kpi.red   { border-top-color: #C0392B; }
+  .kpi.green { border-top-color: #27AE60; }
+  .kpi.gold  { border-top-color: #F4A21E; }
+  .kpi-val   { font-size: 26px; font-weight: 800; color: #1F4E79; margin-bottom: 4px; }
+  .kpi.red   .kpi-val { color: #C0392B; }
+  .kpi.green .kpi-val { color: #27AE60; }
+  .kpi.gold  .kpi-val { color: #E67E22; }
+  .kpi-label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .charts-grid   { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 16px 40px; }
+  .charts-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; padding: 0 40px 16px; }
+  .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+  .card h3 { font-size: 13px; color: #1F4E79; font-weight: 700; text-transform: uppercase;
+             letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #EBF3FB; }
+  .chart-wrap    { position: relative; height: 220px; }
+  .chart-wrap-lg { position: relative; height: 260px; }
+
+  .model-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .model-table th { background: #1F4E79; color: white; padding: 10px 14px; text-align: left; }
+  .model-table td { padding: 10px 14px; border-bottom: 1px solid #EEE; }
+  .model-table tr:nth-child(even) td { background: #F7FAFD; }
+  .tag { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; }
+  .tag.green { background: #E8F8EE; color: #27AE60; }
+  .tag.blue  { background: #EBF3FB; color: #2E75B6; }
+  .tag.red   { background: #FEE; color: #C0392B; }
+
+  .insight { background: #EBF3FB; border-left: 4px solid #2E75B6; padding: 12px 16px;
+             border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 13px; color: #1A1A1A; }
+  .insight strong { color: #1F4E79; }
+
+  .footer { text-align: center; padding: 20px; font-size: 12px; color: #999; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>Customer Churn Prediction — Nigerian Fintech</h1>
+    <p>Machine learning analysis across 1,000 customers · Logistic Regression & Decision Tree · March 2026</p>
+  </div>
+  <div class="badge">Prepared by Ayodeji Toluwani · NCAIR</div>
+</div>
+
+<!-- KPIs -->
+<div class="kpi-row">
+  <div class="kpi red">
+    <div class="kpi-val">12.0%</div>
+    <div class="kpi-label">Churn Rate</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-val">1,000</div>
+    <div class="kpi-label">Customers Analysed</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-val">89.0%</div>
+    <div class="kpi-label">Model Accuracy</div>
+  </div>
+  <div class="kpi green">
+    <div class="kpi-val">0.948</div>
+    <div class="kpi-label">AUC Score</div>
+  </div>
+  <div class="kpi gold">
+    <div class="kpi-val">83%</div>
+    <div class="kpi-label">Churner Recall</div>
+  </div>
+</div>
+
+<!-- Row 1 -->
+<div class="charts-grid">
+  <div class="card">
+    <h3>Overall Churn Rate</h3>
+    <div class="chart-wrap"><canvas id="churnDonut"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Churn Rate by Account Type</h3>
+    <div class="chart-wrap"><canvas id="churnByType"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2 -->
+<div class="charts-grid">
+  <div class="card">
+    <h3>Key Churn Drivers</h3>
+    <div class="chart-wrap-lg"><canvas id="churnDrivers"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Churn by State</h3>
+    <div class="chart-wrap-lg"><canvas id="churnByState"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 3 -->
+<div class="charts-grid-3">
+  <div class="card">
+    <h3>Model Comparison — Accuracy & AUC</h3>
+    <div class="chart-wrap"><canvas id="modelCompare"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Feature Importance (Decision Tree)</h3>
+    <div class="chart-wrap"><canvas id="featureImportance"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Key Insights & Recommendations</h3>
+    <div style="padding-top:6px">
+      <div class="insight"><strong>New customers churn most.</strong> Customers under 6 months tenure are highest risk — onboarding experience is critical.</div>
+      <div class="insight"><strong>Support calls = warning signal.</strong> Churned customers made 2x more support calls. Fix resolution speed.</div>
+      <div class="insight"><strong>Savings plan = loyalty.</strong> Customers with savings plans churn 60% less. Push activation campaigns.</div>
+      <div class="insight"><strong>Low app logins precede exit.</strong> Re-engage dormant users with personalised push notifications before they leave.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Model results table -->
+<div style="padding: 0 40px 16px;">
+  <div class="card">
+    <h3>Model Performance Summary</h3>
+    <table class="model-table">
+      <thead>
+        <tr><th>Model</th><th>Accuracy</th><th>AUC Score</th><th>Precision</th><th>Recall</th><th>Verdict</th></tr>
+      </thead>
+      <tbody>
+        <tr style="background:#F0FFF4">
+          <td><strong>Logistic Regression ✓</strong></td>
+          <td><strong>89.0%</strong></td>
+          <td><strong style="color:#27AE60">0.948</strong></td>
+          <td>53%</td>
+          <td><strong>83%</strong></td>
+          <td><span class="tag green">Recommended</span></td>
+        </tr>
+        <tr>
+          <td>Decision Tree</td>
+          <td>87.5%</td>
+          <td>0.871</td>
+          <td>49%</td>
+          <td>71%</td>
+          <td><span class="tag blue">Strong</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer">Ayodeji Toluwani · AI/Data Intern, NCAIR · ayodejitoluwani@gmail.com · March 2026</div>
+
+<script>
+const BLUE='#1F4E79', LIGHT='#2E75B6', GREEN='#27AE60', RED='#C0392B', GOLD='#F4A21E';
+
+// Churn donut
+new Chart(document.getElementById('churnDonut'), { type:'doughnut',
+  data:{ labels:['Retained (88%)','Churned (12%)'],
+    datasets:[{ data:[88,12], backgroundColor:[GREEN, RED], borderColor:'white', borderWidth:3, hoverOffset:6 }]},
+  options:{ plugins:{legend:{position:'bottom'}}, cutout:'65%' }
+});
+
+// Churn by account type
+new Chart(document.getElementById('churnByType'), { type:'bar',
+  data:{ labels:['Basic','Premium','Business'],
+    datasets:[{ label:'Churn Rate (%)', data:[15.2, 10.4, 7.8],
+      backgroundColor:[RED, LIGHT, GOLD], borderRadius:6, borderColor:'white', borderWidth:2 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{y:{max:20, ticks:{callback:v=>`${v}%`}}}}
+});
+
+// Churn drivers
+new Chart(document.getElementById('churnDrivers'), { type:'bar',
+  data:{
+    labels:['Avg Support Calls\n(Churned)','Avg Support Calls\n(Retained)','Avg App Logins\n(Churned)','Avg App Logins\n(Retained)'],
+    datasets:[{ data:[6.8, 3.2, 18, 42],
+      backgroundColor:[RED, GREEN, RED, GREEN],
+      borderRadius:6, borderColor:'white', borderWidth:2 }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}},
+    scales:{x:{title:{display:true,text:'Average Value per Customer'}}}}
+});
+
+// Churn by state
+const states = ['Lagos','Kano','Rivers','Abuja','Oyo','Delta','Kaduna','Enugu'];
+const rates  = [14.2, 13.8, 12.9, 12.1, 11.6, 11.2, 10.8, 10.3];
+new Chart(document.getElementById('churnByState'), { type:'bar',
+  data:{ labels:states,
+    datasets:[{ data:rates,
+      backgroundColor: rates.map(v => v===Math.max(...rates) ? RED : LIGHT),
+      borderRadius:6, borderColor:'white', borderWidth:2 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{y:{ticks:{callback:v=>`${v}%`}, title:{display:true,text:'Churn Rate (%)'}}} }
+});
+
+// Model comparison
+new Chart(document.getElementById('modelCompare'), { type:'bar',
+  data:{ labels:['Accuracy','AUC Score'],
+    datasets:[
+      { label:'Logistic Regression', data:[0.890, 0.948], backgroundColor:BLUE, borderRadius:4 },
+      { label:'Decision Tree',       data:[0.875, 0.871], backgroundColor:GOLD, borderRadius:4 },
+    ]},
+  options:{ plugins:{legend:{position:'bottom'}},
+    scales:{y:{min:0.8, max:1.0, ticks:{callback:v=>v.toFixed(2)}}}}
+});
+
+// Feature importance
+new Chart(document.getElementById('featureImportance'), { type:'bar',
+  data:{ labels:['Tenure','Support Calls','App Logins','Balance','Savings Plan','Age','Transactions','Water Cut'],
+    datasets:[{ data:[0.28, 0.22, 0.18, 0.12, 0.10, 0.05, 0.03, 0.02],
+      backgroundColor: [BLUE,RED,LIGHT,LIGHT,GREEN,GOLD,GOLD,GOLD],
+      borderRadius:4, borderColor:'white', borderWidth:1.5 }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}},
+    scales:{x:{title:{display:true,text:'Importance Score'}}}}
+});
+</script>
+</body>
+</html>
